@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ECHO</title>
+<style>
+  body { margin: 0; padding: 24px; font-family: -apple-system, sans-serif; background: #0e0e0e; color: #f2f2f2; }
+  h1 { font-size: 22px; margin-bottom: 16px; display: inline-block;}
+  
+  /* 新增：返回按钮样式 */
+  .back-link { float: right; color: #666; text-decoration: none; font-size: 14px; margin-top: 5px;}
+
+  textarea { width: 100%; height: 120px; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 12px; font-size: 15px; resize: none; box-sizing: border-box;}
+  .counter { font-size: 12px; color: #aaa; margin-top: 6px; }
+  button { margin-top: 16px; padding: 10px 16px; background: #ffffff; color: #000; border: none; border-radius: 20px; font-size: 14px; cursor: pointer; }
+  .entry { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #333; }
+  .time { font-size: 12px; color: #888; margin-top: 4px; }
+  .sealed { font-size: 14px; color: #777; margin-top: 24px; text-align: center; }
+</style>
+</head>
+<body>
+
+    <div style="margin-bottom: 20px;">
+        <h1>ECHO</h1>
+        <a href="index.html" class="back-link">✕ 关闭</a>
+    </div>
+
+    <div id="inputView" style="display:none;">
+        <textarea id="textInput" maxlength="200" placeholder="写下一段你想留下的回声&#10;写下后不可更改&#10;只保留10次记录&#10;且行且珍惜"></textarea>
+        <div class="counter"><span id="charCount">0</span> / 200</div>
+        <button onclick="saveEntry()">保存</button>
+    </div>
+
+    <div id="displayView" style="display:none;">
+        <div id="entries"></div>
+        <div id="sealedHint" class="sealed" style="display:none;">记忆已被写满。</div>
+    </div>
+
+<script>
+const MAX_ENTRIES = 10;
+const STORAGE_KEY = "echo_entries";
+const inputView = document.getElementById("inputView");
+const displayView = document.getElementById("displayView");
+const textInput = document.getElementById("textInput");
+const charCount = document.getElementById("charCount");
+const entriesDiv = document.getElementById("entries");
+const sealedHint = document.getElementById("sealedHint");
+
+textInput.addEventListener("input", () => { charCount.textContent = textInput.value.length; });
+
+function loadEntries() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+}
+function saveEntries(entries) { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+function renderEntries() {
+  const entries = loadEntries();
+  entriesDiv.innerHTML = "";
+  entries.forEach(entry => {
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML = `<div>${entry.text}</div><div class="time">${entry.time}</div>`;
+    entriesDiv.appendChild(div);
+  });
+  if (entries.length >= MAX_ENTRIES) { sealedHint.style.display = "block"; }
+}
+function saveEntry() {
+  const text = textInput.value.trim();
+  if (!text) return;
+  let entries = loadEntries();
+  if (entries.length >= MAX_ENTRIES) return;
+  const now = new Date();
+  entries.push({ text, time: now.toLocaleString() });
+  saveEntries(entries);
+  initView();
+}
+function initView() {
+  const entries = loadEntries();
+  displayView.style.display = "block";
+  renderEntries();
+  if (entries.length < MAX_ENTRIES) {
+    inputView.style.display = "block";
+    textInput.value = "";
+    charCount.textContent = "0";
+  } else {
+    inputView.style.display = "none";
+  }
+}
+initView();
+</script>
+</body>
+</html>

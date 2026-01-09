@@ -9,9 +9,9 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            background-color: #0e0e0e; /* 保持与 ECHO 一致的深色背景 */
+            background-color: #0e0e0e; /* 深色背景，保持统一风格 */
             color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -21,68 +21,62 @@
         h1 {
             font-weight: 300;
             letter-spacing: 4px;
-            margin-bottom: 40px;
-            font-size: 14px;
+            margin-bottom: 40px; /* 标题和按钮之间的距离 */
+            font-size: 18px;
             opacity: 0.6;
             text-transform: uppercase;
         }
 
-        /* 容器：模仿手绘图的横向排列 */
+        /* 容器配置：设置为竖向排列 (Column) */
         .card-container {
             display: flex;
-            gap: 15px; /* 卡片之间的间距 */
-            padding: 0 20px;
+            flex-direction: column; 
+            gap: 25px; /* 按钮之间的间距 */
+            padding: 0 30px;
             width: 100%;
-            max-width: 600px;
+            max-width: 300px; /* 限制按钮最大宽度，手机上更好看 */
             box-sizing: border-box;
-            justify-content: center;
         }
 
-        /* 卡片按钮样式 */
+        /* 按钮通用样式 */
         .card {
-            flex: 1; /* 三个卡片等宽 */
-            height: 180px; /* 卡片高度 */
+            width: 100%;
+            height: 70px; /* 按钮高度 */
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 12px;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            text-decoration: none;
+            text-decoration: none; /* 去掉下划线 */
             color: #fff;
             transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card:active {
-            transform: scale(0.95);
-            background: #252525;
-        }
-
-        /* 竖排文字样式 (模仿草图中的竖写) */
-        .card-text {
-            writing-mode: vertical-rl; /* 竖排文字 */
-            text-orientation: upright;
             font-size: 18px;
-            letter-spacing: 6px;
-            font-weight: bold;
-        }
-        
-        /* ECHO 不需要竖排，根据你的图是英文横排或竖排皆可，这里设为竖排保持一致，也可单独改 */
-        .text-echo {
-            writing-mode: horizontal-tb; /* 英文还是横排好看点，或者你可以删掉这就变成竖排 */
-            transform: rotate(-90deg); /* 或者像书脊一样旋转 */
-            font-size: 20px;
             letter-spacing: 2px;
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        /* 第三个卡片：待定功能 */
+        /* 点击时的按压效果 */
+        .card:active {
+            transform: scale(0.96);
+            background: #252525;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* 第三个按钮：虚线框样式 */
         .card.disabled {
+            background: transparent;
             opacity: 0.3;
             cursor: default;
-            border-style: dashed;
+            border: 2px dashed #444;
+            font-size: 24px;
+            box-shadow: none;
+        }
+        
+        /* 针对“祝福听歌”加一点微小的金色光泽（可选） */
+        .card.special {
+            border-color: #555;
         }
     </style>
 </head>
@@ -92,17 +86,17 @@
 
     <div class="card-container">
         
-        <div class="card disabled">
-            <span class="card-text">...</span>
-        </div>
+        <a href="blessing.html" class="card special">
+            祝福听歌
+        </a>
 
         <a href="echo.html" class="card">
-            <span class="card-text" style="writing-mode: vertical-rl; text-orientation: mixed;">ECHO</span>
+            ECHO
         </a>
 
-        <a href="blessing.html" class="card">
-            <span class="card-text">祝福</span>
-        </a>
+        <div class="card disabled">
+            ...
+        </div>
 
     </div>
 

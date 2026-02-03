@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HORSE TALISMAN</title>
+    <style>
+        /* --- 1. 全局环境：深灰背景，凸显金色 --- */
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #1a1a1a; /*由纯黑改为深岩石灰，更有质感 */
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            perspective: 1000px; /* 开启3D透视 */
+        }
+
+        /* --- 2. 修复：返回按钮移至左上角 --- */
+        .back-link {
+            position: absolute;
+            top: 24px;   /* 距离顶部 */
+            left: 24px;  /* 距离左侧 */
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-size: 14px;
+            letter-spacing: 1px;
+            z-index: 100; /* 确保在最上层 */
+            padding: 10px; /* 增加点击区域 */
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        .back-link:active {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* --- 3. 3D 符咒容器 --- */
+        .scene {
+            width: 260px;
+            height: 260px;
+            position: relative;
+            cursor: pointer;
+            margin-bottom: 60px;
+            /* 待机时的悬浮呼吸感 */
+            animation: float 4s ease-in-out infinite; 
+        }
+
+        /* 符咒本体 */
+        .talisman {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d; /* 保持3D空间 */
+            transition: transform 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 翻转动画曲线 */
+        }
+
+        /* 符咒的共同面样式 (八边形) */
+        .talisman-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden; /* 背面不可见 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e0d6c8; /* 石头/骨制品的米灰色底 */
+            
+            /* CSS 裁剪出八边形 */
+            clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+            
+            /* 模拟石头边缘的内阴影 */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            border: 5px solid #a89f91; /* 边缘线 */
+        }
+
+        /* --- 正面 (Face Front) - 实际上是初始看到的背面 (符文) --- */
+        .face-rune {
+            /* 初始状态：面向用户 */
+            transform: rotateY(0deg); 
+        }
+        
+        /* --- 反面 (Face Back) - 实际上是翻转后看到的正面 (马) --- */
+        .face-horse {
+            /* 初始状态：背对用户 */
+            transform: rotateY(180deg); 
+            background-color: #f0e6d8; /* 稍微亮一点 */
+        }
+
+        /* 图片样式调整 */
+        .face-img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            mix-blend-mode: multiply; /* 让图片融入石头底色 */
+            opacity: 0.8;
+        }
+
+        /* --- 4. 动画状态：激活 (Active) --- */
+        
+        /* 1. 翻转 */
+        .talisman.flipped {
+            transform: rotateY(180deg); /* 翻转180度，露出马 */
+        }
+
+        /* 2. 放大与发光 (加在 scene 上) */
+        .scene.active {
+            animation: none; /* 停止悬浮 */
+            transition: all 0.5s ease 1s; /* 延迟1秒执行(等翻转完) */
+            transform: scale(1.2); /* 放大 */
+        }
+
+        /* 3. 圣光特效 */
+        .glow-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 223, 0, 0) 70%);
+            border-radius: 50%;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 1s ease 1.2s; /* 延迟发光 */
+        }
+
+        .scene.active .glow-effect {
+            opacity: 1;
+            animation: pulse-gold 2s infinite alternate;
+        }
+
+        /* --- 5. 文字提示 --- */
+        .hint-text {
+            text-align: center;
+            opacity: 0.5;
+            transition: opacity 0.5s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 14px;
+            color: #d4af37; /* 暗金色 */
+        }
+
+        /* --- 动画关键帧 --- */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes pulse-gold {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; box-shadow: 0 0 20px gold;}
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; box-shadow: 0 0 80px gold;}
+        }
+
+    </style>
+</head>
+<body>
+
+    <a href="index.html" class="back-link">← HUB</a>
+
+    <div class="scene" id="scene" onclick="castSpell()">
+        <div class="glow-effect"></div>
+        
+        <div class="talisman" id="talisman">
+            
+            <div class="talisman-face face-rune">
+                <img src="talisman_back.jpg" class="face-img" alt="Rune">
+            </div>
+
+            <div class="talisman-face face-horse">
+                <img src="talisman_front.jpg" class="face-img" alt="Horse">
+            </div>
+
+        </div>
+    </div>
+
+    <div class="hint-text" id="hint">点击符咒 · 祛除外力</div>
+
+    <audio id="audio" src="holyhorse.mp3"></audio>
+
+    <script>
+        var audio = document.getElementById("audio");
+        var scene = document.getElementById("scene");
+        var talisman = document.getElementById("talisman");
+        var hint = document.getElementById("hint");
+        
+        // 标记是否正在播放，防止重复点击
+        var isCast = false;
+
+        function castSpell() {
+            if (isCast) return; // 如果正在施法，点击无效
+            isCast = true;
+
+            // 1. 播放音频
+            audio.play();
+
+            // 2. 执行动画序列
+            // 翻转符咒
+            talisman.classList.add("flipped");
+            
+            // 隐藏提示文字
+            hint.style.opacity = "0";
+
+            // 翻转进行中... 等待翻转大半后，开始放大和发光
+            setTimeout(() => {
+                scene.classList.add("active"); // 放大 + 开启圣光
+            }, 800);
+        }
+
+        // 监听音频结束，重置状态
+        audio.addEventListener('ended', function() {
+            // 延迟一点点重置，让用户回味一下
+            setTimeout(() => {
+                // 移除所有激活状态类
+                talisman.classList.remove("flipped");
+                scene.classList.remove("active");
+                hint.style.opacity = "0.5";
+                hint.innerText = "再次点击 · 治愈";
+                isCast = false;
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

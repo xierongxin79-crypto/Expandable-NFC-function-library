@@ -3,52 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HORSE TALISMAN</title>
+    <title>STONE HORSE TALISMAN</title>
     <style>
-        /* --- 1. 全局环境：深灰背景，凸显金色 --- */
+        /* --- 1. 全局环境：纯黑深邃 --- */
         body {
             margin: 0;
             height: 100vh;
-            background-color: #1a1a1a; /*由纯黑改为深岩石灰，更有质感 */
+            background-color: #000000; /* 纯黑背景 */
             color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, serif; /* 使用衬线体增加史诗感 */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            perspective: 1000px; /* 开启3D透视 */
+            perspective: 1200px; /* 增强透视感 */
         }
 
-        /* --- 2. 修复：返回按钮移至左上角 --- */
+        /* --- 2. UI 元素 --- */
         .back-link {
             position: absolute;
-            top: 24px;   /* 距离顶部 */
-            left: 24px;  /* 距离左侧 */
-            color: rgba(255, 255, 255, 0.6);
+            top: 24px; left: 24px;
+            color: rgba(255, 255, 255, 0.5);
             text-decoration: none;
             font-size: 14px;
-            letter-spacing: 1px;
-            z-index: 100; /* 确保在最上层 */
-            padding: 10px; /* 增加点击区域 */
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 20px;
-            background: rgba(0,0,0,0.3);
-            transition: all 0.3s;
-        }
-        .back-link:active {
-            background: rgba(255,255,255,0.1);
+            letter-spacing: 2px;
+            z-index: 100;
+            padding: 12px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            text-transform: uppercase;
         }
 
-        /* --- 3. 3D 符咒容器 --- */
+        .hint-text {
+            position: absolute;
+            bottom: 80px;
+            text-align: center;
+            opacity: 0.7;
+            transition: all 0.8s;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-size: 12px;
+            color: #aaa;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        }
+
+        /* --- 3. 3D 场景容器 --- */
         .scene {
-            width: 260px;
-            height: 260px;
+            width: 280px;
+            height: 280px;
             position: relative;
             cursor: pointer;
-            margin-bottom: 60px;
-            /* 待机时的悬浮呼吸感 */
-            animation: float 4s ease-in-out infinite; 
+            /* 待机时的沉重悬浮感 */
+            animation: float-heavy 6s ease-in-out infinite;
+            z-index: 10;
         }
 
         /* 符咒本体 */
@@ -56,173 +64,203 @@
             width: 100%;
             height: 100%;
             position: absolute;
-            transform-style: preserve-3d; /* 保持3D空间 */
-            transition: transform 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 翻转动画曲线 */
+            transform-style: preserve-3d;
+            /* 初始状态：稍微倾斜，展示厚度 */
+            transform: rotateX(15deg) rotateY(-20deg);
+            transition: transform 0.3s ease-out; /* 用于鼠标跟随的微动 */
         }
 
-        /* 符咒的共同面样式 (八边形) */
+        /* --- 4. 石质符咒面核心构造 --- */
         .talisman-face {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden; /* 背面不可见 */
+            width: 100%; height: 100%;
+            backface-visibility: hidden;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #e0d6c8; /* 石头/骨制品的米灰色底 */
+            align-items: center; justify-content: center;
+            /* 八边形切割 */
+            clip-path: polygon(29% 0%, 71% 0%, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0% 71%, 0% 29%);
             
-            /* CSS 裁剪出八边形 */
-            clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+            /* 石头材质基础设置 */
+            background-size: cover;
+            background-position: center;
             
-            /* 模拟石头边缘的内阴影 */
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-            border: 5px solid #a89f91; /* 边缘线 */
+            /* 核心技术：模拟厚重石头边缘的 Bevel 效果 */
+            /* 通过多重内阴影模拟高光和阴影棱角 */
+            box-shadow: 
+                inset 0 0 0 4px #4a4a4a, /* 最外层深色硬边 */
+                inset 0 0 20px 10px rgba(0,0,0,0.8), /* 内部深度阴影 */
+                inset 8px 8px 15px rgba(255,255,255,0.15), /* 左上角石质高光 */
+                inset -8px -8px 15px rgba(0,0,0,0.7); /* 右下角厚重阴影 */
+            
+            border: 1px solid #2a2a2a; /* 微弱的描边 */
         }
 
-        /* --- 正面 (Face Front) - 实际上是初始看到的背面 (符文) --- */
-        .face-rune {
-            /* 初始状态：面向用户 */
-            transform: rotateY(0deg); 
-        }
-        
-        /* --- 反面 (Face Back) - 实际上是翻转后看到的正面 (马) --- */
+        /* --- A面：马 (正面) --- */
         .face-horse {
-            /* 初始状态：背对用户 */
-            transform: rotateY(180deg); 
-            background-color: #f0e6d8; /* 稍微亮一点 */
+            /* 使用你准备的石质贴图 */
+            background-image: url('stone_horse_texture.jpg');
+            transform: translateZ(15px); /* 向前推出，制造厚度感 */
+        }
+        /* 在马表面叠加一层蓝色光晕，模拟图4的蓝色神力 */
+        .face-horse::after {
+            content: ''; position: absolute; top:0; left:0; right:0; bottom:0;
+            background: radial-gradient(circle at center, rgba(66, 135, 245, 0.2) 0%, transparent 70%);
+            mix-blend-mode: overlay;
         }
 
-        /* 图片样式调整 */
-        .face-img {
-            width: 70%;
-            height: 70%;
+        /* --- B面：符文 (反面) --- */
+        .face-rune {
+            transform: rotateY(180deg) translateZ(15px); /* 向后推出 */
+            background-color: #3a3a3a; /* 深石灰色底 */
+            /* 叠加一个基础岩石纹理 */
+            background-image: linear-gradient(to bottom right, rgba(0,0,0,0.6), rgba(0,0,0,0.1));
+        }
+        /* 符文图片样式 */
+        .rune-img {
+            width: 65%; height: 65%;
             object-fit: contain;
-            mix-blend-mode: multiply; /* 让图片融入石头底色 */
-            opacity: 0.8;
+            opacity: 0.6;
+            filter: invert(1) contrast(0.8); /* 反色并降低对比度，让它看起来像刻痕 */
+            mix-blend-mode: overlay; /* 融入石头背景 */
         }
-
-        /* --- 4. 动画状态：激活 (Active) --- */
         
-        /* 1. 翻转 */
-        .talisman.flipped {
-            transform: rotateY(180deg); /* 翻转180度，露出马 */
+
+        /* --- 5. 动画状态：激活 (Casting) --- */
+        
+        /* 核心动画：5秒史诗旋转 */
+        /* 旋转 2圈半 (360*2 + 180 = 900度) 加上初始角度修正 */
+        .talisman.casting {
+             /* 使用 cubic-bezier 创造 "启动慢 -> 极速旋转 -> 缓慢减速停稳" 的史诗感 */
+            animation: epic-spin 5s cubic-bezier(0.45, 0.05, 0.22, 1) forwards;
         }
 
-        /* 2. 放大与发光 (加在 scene 上) */
+        /* 放大与激活光效 */
         .scene.active {
             animation: none; /* 停止悬浮 */
-            transition: all 0.5s ease 1s; /* 延迟1秒执行(等翻转完) */
-            transform: scale(1.2); /* 放大 */
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) 4s; /* 延迟4秒(等转完)再放大 */
+            transform: scale(1.4) rotateX(10deg); /* 放大并稍微抬头 */
         }
 
-        /* 3. 圣光特效 */
-        .glow-effect {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 100%;
-            transform: translate(-50%, -50%);
-            background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 223, 0, 0) 70%);
-            border-radius: 50%;
+        .hint-text.fade-out {
             opacity: 0;
-            z-index: -1;
-            transition: opacity 1s ease 1.2s; /* 延迟发光 */
+            transform: translateY(20px);
         }
 
-        .scene.active .glow-effect {
-            opacity: 1;
-            animation: pulse-gold 2s infinite alternate;
+        /* --- 6. 史诗级复合光效 --- */
+        
+        /* 基础光晕容器 */
+        .glow-container {
+            position: absolute; top: 50%; left: 50%;
+            width: 100%; height: 100%;
+            transform: translate(-50%, -50%) scale(0.8);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease 4.2s; /* 旋转快结束时开始显现 */
+        }
+        .scene.active .glow-container { opacity: 1; }
+
+        /* 光层1：马符咒神力 (蓝紫色) */
+        .glow-blue {
+            position: absolute; inset: -50%;
+            background: radial-gradient(circle, rgba(50, 100, 255, 0.5) 0%, transparent 60%);
+            filter: blur(30px);
+            mix-blend-mode: screen;
+            animation: pulse-blue 3s infinite alternate;
+        }
+        /* 光层2：能量爆发 (金色) */
+        .glow-gold {
+            position: absolute; inset: -30%;
+            background: radial-gradient(circle, rgba(255, 200, 50, 0.6) 10%, transparent 50%);
+            filter: blur(20px);
+            mix-blend-mode: screen;
+            opacity: 0; /* 初始不可见 */
+        }
+        .scene.active .glow-gold {
+            animation: burst-gold 2s ease-out 4.5s forwards; /* 最后时刻爆发 */
         }
 
-        /* --- 5. 文字提示 --- */
-        .hint-text {
-            text-align: center;
-            opacity: 0.5;
-            transition: opacity 0.5s;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 14px;
-            color: #d4af37; /* 暗金色 */
+        /* --- 关键帧动画定义 --- */
+        @keyframes float-heavy {
+            0%, 100% { transform: translateY(0) rotateX(0deg); }
+            50% { transform: translateY(-10px) rotateX(2deg); }
         }
 
-        /* --- 动画关键帧 --- */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
+        @keyframes epic-spin {
+            0% { transform: rotateX(15deg) rotateY(-20deg); } /* 初始状态 */
+            10% { transform: rotateX(-10deg) rotateY(-180deg); } /* 后退蓄力 */
+            /* 极速旋转阶段 */
+            80% { transform: rotateX(0deg) rotateY(-900deg); } /* 转了2.5圈 */
+            /* 缓慢停稳在正面 */
+            100% { transform: rotateX(0deg) rotateY(-900deg); } 
+            /* 注意：-20deg 到 -900deg 最终正面朝前是因为它们相差880度，接近2.5圈 */
         }
 
-        @keyframes pulse-gold {
-            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; box-shadow: 0 0 20px gold;}
-            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; box-shadow: 0 0 80px gold;}
+        @keyframes pulse-blue {
+            0% { opacity: 0.3; transform: scale(0.9); }
+            100% { opacity: 0.7; transform: scale(1.1); }
         }
-
+        @keyframes burst-gold {
+            0% { opacity: 0; transform: scale(0.5); }
+            20% { opacity: 1; transform: scale(1.3); }
+            100% { opacity: 0.4; transform: scale(1.1); }
+        }
     </style>
 </head>
 <body>
 
     <a href="index.html" class="back-link">← HUB</a>
 
+    <div class="glow-container">
+        <div class="glow-blue"></div>
+        <div class="glow-gold"></div>
+    </div>
+
     <div class="scene" id="scene" onclick="castSpell()">
-        <div class="glow-effect"></div>
-        
         <div class="talisman" id="talisman">
-            
+            <div class="talisman-face face-horse"></div>
+
             <div class="talisman-face face-rune">
-                <img src="talisman_back.jpg" class="face-img" alt="Rune">
+                <img src="talisman_back.jpg" class="rune-img" alt="Rune" onerror="this.style.display='none'; alert('背面图加载失败，请检查文件名是否为 talisman_back.jpg 且大小写一致')">
             </div>
-
-            <div class="talisman-face face-horse">
-                <img src="talisman_front.jpg" class="face-img" alt="Horse">
-            </div>
-
         </div>
     </div>
 
-    <div class="hint-text" id="hint">点击符咒 · 祛除外力</div>
+    <div class="hint-text" id="hint">触摸符咒 · 唤醒神力</div>
 
-    <audio id="audio" src="holyhorse.mp3"></audio>
+    <audio id="audio" src="magic.mp3"></audio>
 
     <script>
         var audio = document.getElementById("audio");
         var scene = document.getElementById("scene");
         var talisman = document.getElementById("talisman");
         var hint = document.getElementById("hint");
-        
-        // 标记是否正在播放，防止重复点击
         var isCast = false;
 
         function castSpell() {
-            if (isCast) return; // 如果正在施法，点击无效
+            if (isCast) return;
             isCast = true;
 
-            // 1. 播放音频
             audio.play();
 
-            // 2. 执行动画序列
-            // 翻转符咒
-            talisman.classList.add("flipped");
-            
-            // 隐藏提示文字
-            hint.style.opacity = "0";
+            // 1. 开始史诗旋转
+            talisman.classList.add("casting");
+            // 2. 隐藏文字
+            hint.classList.add("fade-out");
 
-            // 翻转进行中... 等待翻转大半后，开始放大和发光
-            setTimeout(() => {
-                scene.classList.add("active"); // 放大 + 开启圣光
-            }, 800);
+            // 3. 动画将在 CSS 中根据时间轴触发放大和光效
+            scene.classList.add("active");
         }
 
-        // 监听音频结束，重置状态
         audio.addEventListener('ended', function() {
-            // 延迟一点点重置，让用户回味一下
+            // 音频结束，稍作停留后重置
             setTimeout(() => {
-                // 移除所有激活状态类
-                talisman.classList.remove("flipped");
+                talisman.classList.remove("casting");
                 scene.classList.remove("active");
-                hint.style.opacity = "0.5";
-                hint.innerText = "再次点击 · 治愈";
+                hint.classList.remove("fade-out");
+                hint.innerText = "神力已平息";
                 isCast = false;
-            }, 1000);
+            }, 2000);
         });
     </script>
 </body>

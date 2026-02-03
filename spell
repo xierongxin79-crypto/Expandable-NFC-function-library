@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHI SPELL</title>
+    <style>
+        /* --- 基础设置 --- */
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #050a05; /* 比纯黑更深邃的墨绿色背景 */
+            color: #fff;
+            font-family: "Times New Roman", serif; /* 使用衬线体增加古老感 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- 魔法阵容器 --- */
+        .spell-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 50px;
+        }
+
+        /* --- 核心封印 (中间不动的圆) --- */
+        .center-seal {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, #00ffaa44 0%, #000 70%);
+            border: 4px double #00ffaa; /* 荧光绿边框 */
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 0 20px #00ffaa88;
+            /* 待机时的呼吸效果 */
+            animation: pulse-slow 4s ease-in-out infinite;
+        }
+
+        /* 核心内部的太极/符文示意 */
+        .center-seal::after {
+            content: "氣"; /* 可以换成其他符文 */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            color: #00ffaa;
+            text-shadow: 0 0 10px #00ffaa;
+            opacity: 0.8;
+        }
+
+        /* --- 能量波纹 (扩散动画) --- */
+        .energy-wave {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 2px solid #00ffaa;
+            border-radius: 50%;
+            opacity: 0;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* --- 咒语文字 --- */
+        .incantation-text {
+            text-align: center;
+            color: #00ffaa;
+            text-shadow: 0 0 5px #00ffaa;
+            opacity: 0.5;
+            transition: all 0.5s;
+            margin-bottom: 30px;
+        }
+        .incantation-text h2 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        .incantation-text p {
+            font-size: 14px;
+            margin-top: 8px;
+            color: #88cea5;
+        }
+
+        /* --- 按钮样式 (修改为契合主题的风格) --- */
+        .cast-btn {
+            background: transparent;
+            color: #00ffaa;
+            border: 2px solid #00ffaa;
+            padding: 15px 50px;
+            border-radius: 4px; /* 稍微方一点 */
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 4px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px #00ffaa44;
+            text-transform: uppercase;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; /* 按钮文字保持清晰 */
+        }
+
+        .cast-btn:active {
+            background: #00ffaa33;
+            transform: scale(0.98);
+        }
+
+        .back-link {
+            position: absolute;
+            bottom: 30px;
+            color: #557a68;
+            text-decoration: none;
+            font-size: 14px;
+            letter-spacing: 1px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* ================= 动画定义 ================= */
+
+        /* 待机呼吸 */
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 20px #00ffaa88;}
+            50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 40px #00ffaa;}
+        }
+
+        /* 播放时的核心急速颤动 */
+        @keyframes pulse-fast {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); box-shadow: 0 0 60px #00ffaa; filter: brightness(1.5);}
+            100% { transform: scale(1); }
+        }
+
+        /* 能量波扩散 - 核心动画 */
+        @keyframes ripple-out {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+                border-width: 5px;
+            }
+            100% {
+                transform: scale(4); /* 扩散到4倍大 */
+                opacity: 0;
+                border-width: 1px;
+            }
+        }
+
+        /* ================= 激活状态 (Playing) ================= */
+
+        /* 当容器加上 playing 类时 */
+        .spell-container.playing .center-seal {
+            animation: pulse-fast 0.5s ease-in-out infinite alternate; /* 核心快速颤动 */
+        }
+
+        /* 激活波纹动画 */
+        .spell-container.playing .energy-wave {
+            animation: ripple-out 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+        }
+        /* 为不同的波纹设置延迟，制造层次感 */
+        .spell-container.playing .wave2 { animation-delay: 0.6s; }
+        .spell-container.playing .wave3 { animation-delay: 1.2s; }
+
+        /* 激活文字发光 */
+        body.playing-state .incantation-text {
+            opacity: 1;
+            text-shadow: 0 0 20px #00ffaa, 0 0 40px #00ffaa; /* 强烈发光 */
+        }
+        
+        body.playing-state .cast-btn {
+             background: #00ffaa;
+             color: #050a05;
+             box-shadow: 0 0 30px #00ffaa;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="incantation-text" id="incantation">
+        <h2>妖魔鬼怪快離開</h2>
+        <p>Yu Mo Gui Gwai Fai Di Zao</p>
+    </div>
+
+    <div class="spell-container" id="spellArray">
+        <div class="center-seal"></div>
+        <div class="energy-wave wave1"></div>
+        <div class="energy-wave wave2"></div>
+        <div class="energy-wave wave3"></div>
+    </div>
+
+    <audio id="audio" src="高贵的马儿.mp3"></audio>
+
+    <button class="cast-btn" onclick="castSpell()" id="btn">CAST SPELL</button>
+
+    <a href="index.html" class="back-link">← RETURN HUB</a>
+
+    <script>
+        var audio = document.getElementById("audio");
+        var spellArray = document.getElementById("spellArray");
+        var btn = document.getElementById("btn");
+        var body = document.body;
+
+        // 音频播放结束时，自动停止动画
+        audio.addEventListener('ended', function() {
+            stopAnimation();
+        });
+
+        function castSpell() {
+            if (audio.paused) {
+                // 开始播放
+                audio.play();
+                // 添加激活状态的类名
+                spellArray.classList.add("playing");
+                body.classList.add("playing-state");
+                btn.innerText = "SEALING..."; // 显示正在封印中
+            } else {
+                // 手动暂停
+                audio.pause();
+                audio.currentTime = 0; // 回到开头
+                stopAnimation();
+            }
+        }
+
+        function stopAnimation() {
+            spellArray.classList.remove("playing");
+            body.classList.remove("playing-state");
+            btn.innerText = "CAST SPELL";
+        }
+    </script>
+</body>
+</html>

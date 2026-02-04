@@ -164,33 +164,27 @@
             });
         }
 
-        // 技术 B: 顶点置换 (用于背面凹陷) - 【修正：增加噪点清理】
-       function createDisplacedMe:
-                    // 更新 Canvas
-                    ctx.putImageData(ctx.createImageData(512, 512), 0, 0);
-                    const newData = ctx.createImageData(512, 512);
-                    for(let i=0; i<data.length; i++) newData.data[i] = data[i];
-                    ctx.putImageData(newData, 0, 0);
-                    
-                    // 使用清理后的 Texture
-                    const cleanTexture = new THREE.CanvasTexture(canvas);
-
-                    // 2. 创建置换网格
+       // 技术 B: 顶点置换 (用于背面凹陷) - 【已修复：恢复原版逻辑，解决消失和卡顿问题】
+        function createDisplacedMesh(imageUrl) {
+            return new Promise((resolve) => {
+                // 直接加载图片，不进行任何像素清洗，保留所有细节
+                new THREE.TextureLoader().load(imageUrl, (tex) => {
+                    // 128x128 的高密度网格，足以表现刻痕
                     const geo = new THREE.PlaneGeometry(5.0, 5.0, 128, 128);
                     const mat = new THREE.MeshStandardMaterial({
-                        color: 0x111111, 
-                        map: cleanTexture, // 使用清理后的贴图
-                        alphaTest: 0.1, 
+                        color: 0x111111, // 黑色材质
+                        map: tex,        // 使用原图纹理
+                        alphaTest: 0.1,  // 去除完全透明的部分
                         transparent: true,
-                        displacementMap: cleanTexture, // 使用清理后的贴图进行置换
-                        displacementScale: -0.2, 
-                        displacementBias: 0.05, // 微调偏移量
+                        displacementMap: tex, // 核心：使用原图的高度信息
+                        displacementScale: -0.2, // 向下凹陷
+                        displacementBias: 0.1,   // 偏移修正
                         roughness: 0.9,
                         side: THREE.FrontSide
                     });
                     const mesh = new THREE.Mesh(geo, mat);
                     resolve(mesh);
-                }
+                });
             });
         }
 

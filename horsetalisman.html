@@ -8,36 +8,45 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505; /* 稍微提亮一点背景 */
+            background-color: #000; /* 纯黑背景 */
             font-family: -apple-system, BlinkMacSystemFont, serif;
         }
 
         .back-link {
             position: absolute;
             top: 24px; left: 24px;
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.4);
             text-decoration: none;
             font-size: 14px;
             letter-spacing: 2px;
             z-index: 100;
             padding: 10px 18px;
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.5);
             border-radius: 4px;
             text-transform: uppercase;
         }
 
         .hint-text {
             position: absolute;
-            bottom: 12%;
+            bottom: 15%;
             width: 100%;
             text-align: center;
-            color: #888;
+            color: #666;
             font-size: 12px;
             letter-spacing: 4px;
             text-transform: uppercase;
             pointer-events: none;
             transition: opacity 1s;
+        }
+
+        #loader {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #444;
+            font-size: 12px;
+            letter-spacing: 2px;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -46,75 +55,107 @@
 <body>
 
     <a href="index.html" class="back-link">← HUB</a>
+    <div id="loader">PROCESSING...</div>
     <div class="hint-text" id="hint">TOUCH TO HEAL</div>
     <audio id="audio" src="holyhorse.mp3"></audio>
 
     <script>
         // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
-        // 降低雾的密度，让环境亮一点
-        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+        scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 2, 16); // 稍微抬高相机视角
-        camera.lookAt(0, 0, 0);
+        camera.position.z = 16; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        // 开启阴影支持
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 增强灯光系统 ---
+        // --- 2. 严格控制的灯光 (恢复深色质感) ---
         
-        // 环境光：大幅提亮 (从 1.5 -> 2.5)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
+        // 环境光：调低，保证暗部是黑灰色的，而不是白的
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
         scene.add(ambientLight);
 
-        // 主顶光 (产生阴影)
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        mainLight.position.set(2, 10, 5);
-        mainLight.castShadow = true;
+        // 主光源：侧上方打光，照亮石头纹理
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(5, 5, 10);
         scene.add(mainLight);
 
-        // 底座发光 (模拟展示台灯光)
-        const standLight = new THREE.PointLight(0x4488ff, 2, 20);
-        standLight.position.set(0, -4, 2);
-        scene.add(standLight);
+        // 轮廓光：微弱的蓝光，勾勒边缘
+        const rimLight = new THREE.DirectionalLight(0x4455ff, 0.5);
+        rimLight.position.set(-5, 0, -5);
+        scene.add(rimLight);
 
-        // 扫光灯 (动画用)
-        const flashLight = new THREE.PointLight(0xffffff, 0, 20);
+        // 扫光灯 (特效用)
+        const flashLight = new THREE.PointLight(0xffffff, 0, 15);
         scene.add(flashLight);
 
-        // --- 3. 创建展示台 (Podium) ---
-        const standGeo = new THREE.CylinderGeometry(5, 6, 1, 64);
-        const standMat = new THREE.MeshStandardMaterial({
-            color: 0x111111,
-            roughness: 0.2,
-            metalness: 0.8,
-            emissive: 0x001133,
-            emissiveIntensity: 0.5
-        });
-        const stand = new THREE.Mesh(standGeo, standMat);
-        stand.position.y = -5.5; // 放在符咒下方
-        stand.receiveShadow = true;
-        scene.add(stand);
+        // --- 3. 图像处理核心函数 (解决白底和改色问题) ---
+        function processTexture(imageUrl, type) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imageUrl;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512; canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 512, 512);
+                    
+                    const imageData = ctx.getImageData(0, 0, 512, 512);
+                    const data = imageData.data;
 
-        // 展示台的光环
-        const ringGeo = new THREE.TorusGeometry(5.2, 0.1, 16, 100);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0x0088ff });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = -5.0;
-        scene.add(ring);
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i+1];
+                        const b = data[i+2];
+                        const brightness = (r + g + b) / 3;
 
-        // --- 4. 创建符咒模型 ---
+                        // 1. 去除背景 (如果像素接近白色，Alpha设为0)
+                        if (brightness > 200) { 
+                            data[i+3] = 0; // 完全透明
+                        } else {
+                            // 2. 针对图案内颜色的修改
+                            if (type === 'front') {
+                                // 正面：把原本的颜色(不管红黑) 强制改成 淡紫色 (#dda0dd)
+                                data[i] = 221;   // R
+                                data[i+1] = 160; // G
+                                data[i+2] = 221; // B
+                                // Alpha 保持 255
+                            } else if (type === 'back') {
+                                // 背面：强制改成 黑色
+                                data[i] = 20;
+                                data[i+1] = 20;
+                                data[i+2] = 20;
+                            }
+                        }
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                    const texture = new THREE.CanvasTexture(canvas);
+                    resolve(texture);
+                };
+                img.onerror = () => {
+                    console.error("图片加载失败");
+                    resolve(null);
+                }
+            });
+        }
+
+        // --- 4. 符咒建模 (严格尺寸适配) ---
         
-        // 4.1 调整八边形尺寸 (缩小一点以适配图片)
+        // 设定图片平面的宽度
+        const IMG_WIDTH = 5.0; 
+        
+        // 计算正八边形的半径 (Center to Vertex)
+        // 几何公式：对边距离(Apothem * 2) = IMG_WIDTH
+        // Apothem = IMG_WIDTH / 2 = 2.5
+        // Radius = Apothem / cos(22.5度)
+        // Radius = 2.5 / 0.92388 ≈ 2.706
+        const r = 2.71; 
+
         const shape = new THREE.Shape();
-        const r = 3.6; // 原来是4.0，改小一点
         for (let i = 0; i < 8; i++) {
             const angle = (i * 45 + 22.5) * Math.PI / 180;
             const x = r * Math.cos(angle);
@@ -123,58 +164,73 @@
             else shape.lineTo(x, y);
         }
 
-        const extrudeSettings = { depth: 0.5, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.2, bevelSegments: 2 };
+        const extrudeSettings = { 
+            depth: 0.5, 
+            bevelEnabled: true, 
+            bevelThickness: 0.15, // 稍微减小倒角，让边缘更锐利
+            bevelSize: 0.15, 
+            bevelSegments: 2 
+        };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         geometry.center();
 
+        // 材质：深灰色岩石 (不带颜色倾向)
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x666666, roughness: 0.6, metalness: 0.2 
+            color: 0x333333, // 深灰
+            roughness: 0.8,  // 粗糙
+            metalness: 0.1   // 低金属感
         });
 
         const talismanMesh = new THREE.Mesh(geometry, stoneMaterial);
-        talismanMesh.castShadow = true;
         scene.add(talismanMesh);
         
         // 初始状态：背面
         talismanMesh.rotation.y = Math.PI; 
-        talismanMesh.rotation.x = 0.1;
+        talismanMesh.rotation.x = 0.1; // 微倾斜
 
-        // --- 5. 贴图处理 (白底变透明的关键) ---
-        const textureLoader = new THREE.TextureLoader();
-        // 稍微放大一点贴图平面，覆盖整个八卦面
-        const planeGeo = new THREE.PlaneGeometry(5.2, 5.2); 
+        // --- 5. 加载并应用图案 ---
+        
+        Promise.all([
+            processTexture('talisman_front.jpg', 'front'),
+            processTexture('talisman_back.jpg', 'back')
+        ]).then(textures => {
+            const [frontTex, backTex] = textures;
+            const planeGeo = new THREE.PlaneGeometry(IMG_WIDTH, IMG_WIDTH);
 
-        // 5.1 正面马
-        textureLoader.load('talisman_front.jpg', (tex) => {
-            const frontMat = new THREE.MeshBasicMaterial({
-                map: tex,
-                transparent: true,
-                // 【核心代码】MultiplyBlending (正片叠底)
-                // 白色背景 x 任何颜色 = 透明/无变化
-                // 黑色图案 x 颜色 = 黑色
-                blending: THREE.MultiplyBlending, 
-                color: 0xaa99ff, // 将黑色染成微紫 (Multiply模式下只能染暗部)
-                side: THREE.FrontSide
-            });
-            const frontMesh = new THREE.Mesh(planeGeo, frontMat);
-            frontMesh.position.z = 0.46; // 紧贴石面
-            talismanMesh.add(frontMesh);
-        });
+            // 5.1 正面 (马)
+            if (frontTex) {
+                const frontMat = new THREE.MeshBasicMaterial({
+                    map: frontTex,
+                    transparent: true, // 开启透明
+                    side: THREE.FrontSide
+                });
+                const frontMesh = new THREE.Mesh(planeGeo, frontMat);
+                frontMesh.position.z = 0.26; // 稍微浮起一点点
+                talismanMesh.add(frontMesh);
 
-        // 5.2 背面符文
-        textureLoader.load('talisman_back.jpg', (tex) => {
-            const backMat = new THREE.MeshBasicMaterial({
-                map: tex,
-                transparent: true,
-                // 【核心代码】同理，去白底
-                blending: THREE.MultiplyBlending,
-                color: 0xaaaaaa, // 保持深灰
-                side: THREE.FrontSide
-            });
-            const backMesh = new THREE.Mesh(planeGeo, backMat);
-            backMesh.rotation.y = Math.PI;
-            backMesh.position.z = -0.46;
-            talismanMesh.add(backMesh);
+                // 添加微弱的发光层 (只给马)
+                const glowMesh = frontMesh.clone();
+                glowMesh.material = glowMesh.material.clone();
+                glowMesh.material.blending = THREE.AdditiveBlending;
+                glowMesh.material.opacity = 0.3;
+                glowMesh.position.z = 0.27;
+                talismanMesh.add(glowMesh);
+            }
+
+            // 5.2 背面 (符文)
+            if (backTex) {
+                const backMat = new THREE.MeshBasicMaterial({
+                    map: backTex,
+                    transparent: true,
+                    side: THREE.FrontSide
+                });
+                const backMesh = new THREE.Mesh(planeGeo, backMat);
+                backMesh.rotation.y = Math.PI;
+                backMesh.position.z = -0.26;
+                talismanMesh.add(backMesh);
+            }
+
+            document.getElementById('loader').style.display = 'none';
         });
 
         // --- 6. 动画逻辑 ---
@@ -189,7 +245,7 @@
             audio.currentTime = 0;
             audio.play();
 
-            // 每次点击都强制重置到背面
+            // 重置
             talismanMesh.rotation.y = Math.PI; 
             flashLight.intensity = 0;
 
@@ -201,14 +257,14 @@
                 .onComplete(() => { flashLight.intensity = 0; })
                 .start();
 
-            // 2. 翻转 (1.2s - 3.2s)
+            // 2. 翻转
             new TWEEN.Tween(talismanMesh.rotation)
                 .to({ y: 0 }, 2000)
                 .delay(1200)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 3. 正面扫光 (3.2s - 4.2s)
+            // 3. 正面扫光
             setTimeout(() => {
                 flashLight.position.set(-6, -6, 4); 
                 flashLight.intensity = 0;
@@ -231,10 +287,8 @@
             TWEEN.update(time);
 
             if (!isCasting) {
-                // 待机浮动
-                talismanMesh.position.y = Math.sin(time * 0.001) * 0.2;
-                // 底座呼吸灯
-                standLight.intensity = 2 + Math.sin(time * 0.002) * 0.5;
+                // 待机微动
+                talismanMesh.position.y = Math.sin(time * 0.001) * 0.15;
             }
             renderer.render(scene, camera);
         }

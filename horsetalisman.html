@@ -8,7 +8,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000; /* 纯黑背景 */
+            background-color: #000;
             font-family: -apple-system, BlinkMacSystemFont, serif;
         }
 
@@ -25,9 +25,7 @@
             background: rgba(0,0,0,0.5);
             border-radius: 4px;
             text-transform: uppercase;
-            transition: 0.3s;
         }
-        .back-link:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
         .hint-text {
             position: absolute;
@@ -41,15 +39,6 @@
             pointer-events: none;
             transition: opacity 1s;
         }
-
-        #loader {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #444;
-            font-size: 12px;
-            letter-spacing: 2px;
-        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
@@ -57,13 +46,11 @@
 <body>
 
     <a href="index.html" class="back-link">← HUB</a>
-    <div id="loader">CARVING STONE...</div>
     <div class="hint-text" id="hint">TOUCH TO HEAL</div>
-    
     <audio id="audio" src="holyhorse.mp3"></audio>
 
     <script>
-        // --- 1. 场景与渲染器 ---
+        // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
@@ -73,80 +60,28 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.toneMapping = THREE.ReinhardToneMapping;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 灯光系统 ---
-        // 环境光：微弱
+        // --- 2. 灯光与氛围 ---
+        // 增加蓝色背景光，营造神圣感
+        const bgLight = new THREE.PointLight(0x0033ff, 1, 50); 
+        bgLight.position.set(0, 0, -10);
+        scene.add(bgLight);
+
         const ambientLight = new THREE.AmbientLight(0x404040, 1.5); 
         scene.add(ambientLight);
 
-        // 主光源：顶部冷白光
         const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        mainLight.position.set(0, 10, 5);
+        mainLight.position.set(5, 10, 5);
         scene.add(mainLight);
 
-        // 扫光灯 (Flash Light) - 用于一闪而过的效果
-        // 我们创建一个聚光灯，默认关闭，动画时移动它
-        const flashLight = new THREE.PointLight(0xffffff, 0, 10); // 强度初始为0
-        flashLight.position.set(0, 0, 2);
+        // 扫光灯 (用于一闪而过特效)
+        const flashLight = new THREE.PointLight(0xffffff, 0, 15);
         scene.add(flashLight);
 
-        // --- 3. 图像处理 (自动扣除背景) ---
-        function processTexture(imageUrl, targetColorHex) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.src = imageUrl;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 512; 
-                    canvas.height = 512;
-                    const ctx = canvas.getContext('2d');
-                    
-                    ctx.drawImage(img, 0, 0, 512, 512);
-                    const imageData = ctx.getImageData(0, 0, 512, 512);
-                    const data = imageData.data;
-                    
-                    const targetColor = new THREE.Color(targetColorHex);
-                    const r = targetColor.r * 255;
-                    const g = targetColor.g * 255;
-                    const b = targetColor.b * 255;
-
-                    for (let i = 0; i < data.length; i += 4) {
-                        const red = data[i];
-                        const green = data[i + 1];
-                        const blue = data[i + 2];
-                        const brightness = (red + green + blue) / 3;
-
-                        // 简单的抠图逻辑：
-                        // 如果像素比较亮（接近白色背景），设为透明
-                        // 如果像素比较暗（图案），设为目标颜色
-                        if (brightness > 200) { 
-                            data[i + 3] = 0; // 透明
-                        } else {
-                            data[i] = r;
-                            data[i + 1] = g;
-                            data[i + 2] = b;
-                            data[i + 3] = 255; // 不透明
-                        }
-                    }
-                    
-                    ctx.putImageData(imageData, 0, 0);
-                    const texture = new THREE.CanvasTexture(canvas);
-                    texture.needsUpdate = true;
-                    resolve(texture);
-                };
-                img.onerror = () => {
-                    console.log("图片加载失败，请检查文件名: " + imageUrl);
-                    resolve(null);
-                }
-            });
-        }
-
-        // --- 4. 符咒建模 ---
+        // --- 3. 创建符咒模型 ---
         
-        // 4.1 几何体
+        // 3.1 石头底座
         const shape = new THREE.Shape();
         const r = 4.0; 
         for (let i = 0; i < 8; i++) {
@@ -157,21 +92,12 @@
             else shape.lineTo(x, y);
         }
 
-        const extrudeSettings = {
-            depth: 0.6, 
-            bevelEnabled: true, 
-            bevelThickness: 0.2, 
-            bevelSize: 0.2, 
-            bevelSegments: 2 
-        };
+        const extrudeSettings = { depth: 0.6, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.2, bevelSegments: 2 };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         geometry.center();
 
-        // 4.2 石头材质 (纯灰色)
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x666666, 
-            roughness: 0.8,
-            metalness: 0.2
+            color: 0x555555, roughness: 0.7, metalness: 0.3 
         });
 
         const talismanMesh = new THREE.Mesh(geometry, stoneMaterial);
@@ -179,49 +105,74 @@
         
         // 初始状态：显示背面 (符文)
         talismanMesh.rotation.y = Math.PI; 
-        talismanMesh.rotation.x = 0.2; // 稍微仰视
+        talismanMesh.rotation.x = 0.2;
 
-        // --- 5. 加载图案 ---
-        Promise.all([
-            // 正面马：淡紫色 (#dda0dd)
-            processTexture('talisman_front.jpg', '#dda0dd'), 
-            // 背面符文：黑色 (#111111)
-            processTexture('talisman_back.jpg', '#111111') 
-        ]).then(textures => {
-            const [frontTex, backTex] = textures;
-            const planeGeo = new THREE.PlaneGeometry(5.2, 5.2);
+        // --- 4. 稳健的图案贴图 (直接加载，不抠图) ---
+        const textureLoader = new THREE.TextureLoader();
+        const planeGeo = new THREE.PlaneGeometry(5.0, 5.0); // 稍微调小一点，保证在石头内
 
-            // 1. 正面 (马)
-            if (frontTex) {
-                const frontPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({
-                    map: frontTex,
-                    transparent: true,
-                    opacity: 0.9,
-                    side: THREE.FrontSide // 只显示正面
-                }));
-                // 关键修正：增加 Z 轴偏移量，防止陷进石头
-                frontPlane.position.z = 0.4; 
-                talismanMesh.add(frontPlane);
-            }
+        // 4.1 正面马 (淡紫色光效)
+        textureLoader.load('talisman_front.jpg', (tex) => {
+            const mat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                color: 0xaa88ff, // 强制染成淡紫色
+                blending: THREE.MultiplyBlending, // 变暗混合：白底会变透明，黑图案保留
+                side: THREE.FrontSide
+            });
+            // 如果你的图是红马白底，Multiply 会让红马显现，白底透明。
+            // 为了发光效果，我们再叠一层
+            
+            // 简单方案：使用 AdditiveBlending (发光叠加)，白底变亮，黑图案不显示？不对。
+            // 既然你无法保证自动抠图，我们用最基础的 Multiply (正片叠底) 去白底
+            // 但正片叠底无法做发光色。
+            
+            // 修正策略：直接贴图，手动调整Z轴防止闪烁
+            // 假设你的图是白底红马/黑字。
+            
+            const frontPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                color: 0xdda0dd, // 淡紫色滤镜
+                // 使用这种混合模式去白底：
+                blending: THREE.CustomBlending,
+                blendEquation: THREE.AddEquation,
+                blendSrc: THREE.DstColorFactor,
+                blendDst: THREE.ZeroFactor
+                // 这有点复杂，回退到最简单的 Multiply
+            }));
+            
+            // 最终方案：直接用 MultiplyBlending 去白底，虽然不能发光，但能看清
+            // 或者：请确保你的图片本身就是 PNG 透明底！(这是最佳方案)
+            // 如果必须用 JPG 白底：
+            
+            const frontMat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                blending: THREE.MultiplyBlending, // 白底变透
+                color: 0xffccff // 稍微偏紫
+            });
 
-            // 2. 背面 (符文)
-            if (backTex) {
-                const backPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({
-                    map: backTex,
-                    transparent: true,
-                    opacity: 0.9,
-                    side: THREE.FrontSide
-                }));
-                // 背面图案需要旋转180度并贴在背面
-                backPlane.rotation.y = Math.PI;
-                backPlane.position.z = -0.4;
-                talismanMesh.add(backPlane);
-            }
-
-            document.getElementById('loader').style.display = 'none';
+            const frontMesh = new THREE.Mesh(planeGeo, frontMat);
+            frontMesh.position.z = 0.51; // 足够突出，防止被遮挡
+            talismanMesh.add(frontMesh);
         });
 
-        // --- 6. 动画逻辑 ---
+        // 4.2 背面符文 (黑色)
+        textureLoader.load('talisman_back.jpg', (tex) => {
+            const backMat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                blending: THREE.MultiplyBlending, // 白底变透
+                color: 0x888888 // 深灰色
+            });
+            const backMesh = new THREE.Mesh(planeGeo, backMat);
+            backMesh.rotation.y = Math.PI;
+            backMesh.position.z = -0.51; // 足够突出
+            talismanMesh.add(backMesh);
+        });
+
+        // --- 5. 动画逻辑 ---
         let isCasting = false;
         const audio = document.getElementById("audio");
         const hint = document.getElementById("hint");
@@ -230,60 +181,57 @@
             if (isCasting) return;
             isCasting = true;
             hint.style.opacity = 0;
+            audio.currentTime = 0;
             audio.play();
 
-            // === 动画时间轴 (总长约 5秒) ===
-            
-            // 0. 准备：灯光复位
+            // 重置状态
+            talismanMesh.rotation.y = Math.PI; 
             flashLight.intensity = 0;
 
-            // 1. 背面扫光 (0s - 1.5s)
-            // 光源从左下移动到右上
-            flashLight.position.set(-5, -5, -3); // 在背面一侧
-            flashLight.intensity = 2; // 开启强光
+            // === 动画时间轴 ===
+
+            // 1. 背面扫光 (0s - 1.2s)
+            flashLight.position.set(-6, 6, -4); // 背面左上
+            new TWEEN.Tween(flashLight)
+                .to({ intensity: 3 }, 200)
+                .start();
             
             new TWEEN.Tween(flashLight.position)
-                .to({ x: 5, y: 5 }, 1200) // 1.2秒扫过
-                .easing(TWEEN.Easing.Quadratic.InOut)
+                .to({ x: 6, y: -6 }, 1000) // 扫到右下
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .onComplete(() => { flashLight.intensity = 0; })
                 .start();
 
-            new TWEEN.Tween(flashLight)
-                .to({ intensity: 0 }, 1500) // 扫完后熄灭
-                .delay(200)
-                .start();
-
-            // 2. 翻转 (1.5s - 3.5s)
-            // 从 PI 转到 0
+            // 2. 翻转 (1.2s - 3.2s)
             new TWEEN.Tween(talismanMesh.rotation)
-                .to({ y: 0 }, 2000) // 2秒慢转
-                .delay(1300) // 等扫光差不多了再转
+                .to({ y: 0 }, 2000) // 转到正面
+                .delay(1200)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 3. 正面扫光 (3.5s - 4.5s)
-            // 光源移到正面左下
+            // 3. 正面扫光 (3.2s - 4.2s)
             setTimeout(() => {
-                flashLight.position.set(-5, -5, 3); // 正面
-                flashLight.intensity = 3; // 更亮一点
-                
-                new TWEEN.Tween(flashLight.position)
-                    .to({ x: 5, y: 5 }, 1000) // 1秒快速扫过
-                    .easing(TWEEN.Easing.Quadratic.Out)
-                    .start();
+                flashLight.position.set(-6, -6, 4); // 正面左下
+                flashLight.intensity = 0;
                 
                 new TWEEN.Tween(flashLight)
-                    .to({ intensity: 0 }, 1200)
+                    .to({ intensity: 4 }, 200) // 亮起
                     .start();
-            }, 3300);
 
-            // 4. 结束重置 (5s)
-            setTimeout(() => {
-                hint.innerText = "HEALED";
-                hint.style.opacity = 1;
-                isCasting = false;
-                // 复位角度 (可选，如果想让它停在正面就不加这行)
-                // talismanMesh.rotation.y = Math.PI; 
-            }, 5000);
+                new TWEEN.Tween(flashLight.position)
+                    .to({ x: 6, y: 6 }, 1000) // 扫到右上
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .onComplete(() => {
+                        flashLight.intensity = 0;
+                        // 动画结束
+                        setTimeout(() => {
+                            isCasting = false;
+                            hint.style.opacity = 1;
+                            // 不强制复位，保留在正面展示
+                        }, 500);
+                    })
+                    .start();
+            }, 3200);
         });
 
         function animate(time) {
@@ -291,10 +239,9 @@
             TWEEN.update(time);
 
             if (!isCasting) {
-                // 待机悬浮
-                talismanMesh.position.y = Math.sin(time * 0.001) * 0.2;
+                // 待机轻微浮动
+                talismanMesh.position.y = Math.sin(time * 0.001) * 0.15;
             }
-
             renderer.render(scene, camera);
         }
 
@@ -305,7 +252,6 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
     </script>
 </body>
 </html>

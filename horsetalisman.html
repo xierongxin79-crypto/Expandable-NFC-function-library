@@ -182,7 +182,7 @@
                         const avg = (data[i] + data[i+1] + data[i+2]) / 3;
                         // 【核心修正】阈值清理：如果亮度大于100（浅灰色/白色背景及其杂色），强制变为纯黑
                         // 这样只有深色的符文会保留，消除斑点
-                        if (avg > 100) {
+                        if (avg > 180) {
                              data[i] = 0; data[i+1] = 0; data[i+2] = 0;
                         }
                         // 深色像素保持不变
@@ -235,7 +235,7 @@
         geometry.center();
 
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x888888, // 【修正】将石頭基底颜色调亮到中灰色
+            color: 0x444444, // 【修正】将石頭基底颜色调亮到中灰色
             roughness: 0.8, 
             metalness: 0.1 
         });

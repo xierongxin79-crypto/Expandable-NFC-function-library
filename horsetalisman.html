@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HOLY HORSE TALISMAN</title>
+    <title>REAL 3D TALISMAN GENERATION</title>
     <style>
         body {
             margin: 0;
@@ -44,10 +44,12 @@
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            color: #666;
+            color: #888;
             font-size: 12px;
             letter-spacing: 2px;
             text-transform: uppercase;
+            text-align: center;
+            line-height: 1.5;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -56,14 +58,13 @@
 <body>
 
     <a href="index.html" class="back-link">← HUB</a>
-    <div id="loader">GENERATING 3D GEOMETRY...</div>
+    <div id="loader">GENERATING 3D GEOMETRY...<br>ANALYZING LINE ART</div>
     <div class="hint-text" id="hint">TOUCH TO HEAL</div>
     <audio id="audio" src="holyhorse.mp3"></audio>
 
     <script>
         // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
-        // 极淡的雾，增加空间感
         scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -72,97 +73,135 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        // 开启更真实的物理光照计算
+        renderer.physicallyCorrectLights = true;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 灯光系统 (只保留展示必要的灯光) ---
+        // --- 2. 专业级灯光系统 (为了凸显 3D 凹凸感) ---
         
-        // 环境光：足够亮以看清黑色的符文
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9); 
+        // 环境光：提供基础可见度
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
         scene.add(ambientLight);
 
-        // 主光：硬光，产生立体投影
-        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        mainLight.position.set(5, 5, 10);
-        scene.add(mainLight);
+        // 主光源1：顶部硬光，制造深刻阴影
+        const topLight = new THREE.DirectionalLight(0xffffff, 3.0);
+        topLight.position.set(0, 10, 2);
+        scene.add(topLight);
 
-        // 侧光：勾勒石头边缘
-        const rimLight = new THREE.DirectionalLight(0x4455ff, 0.4);
-        rimLight.position.set(-5, 0, -5);
-        scene.add(rimLight);
+        // 主光源2：侧面强调光，勾勒浮雕边缘
+        const sideLight = new THREE.DirectionalLight(0xaaddff, 2.0);
+        sideLight.position.set(5, 2, 5);
+        scene.add(sideLight);
+
+        // 底部补光：照亮石头底部
+        const bottomLight = new THREE.DirectionalLight(0x555555, 1.0);
+        bottomLight.position.set(0, -5, 0);
+        scene.add(bottomLight);
 
         // 特效扫光灯
-        const flashLight = new THREE.PointLight(0xffffff, 0, 15);
+        const flashLight = new THREE.PointLight(0xffffff, 0, 50);
         scene.add(flashLight);
 
-        // --- 3. 核心算法：图片转 3D 体积 (Layer Stacking) ---
-        // 这个函数读取图片像素，生成一个只包含图案的“遮罩”，并堆叠多层产生厚度
-        function createVolumetricModel(imageUrl, colorHex, layers = 10, depth = 0.2) {
+
+        // ==================================================
+        // --- 核心技术 1: 体积堆叠法 (Volumetric Stacking) ---
+        // 用于正面：将线稿生成凸起的实体模型
+        // ==================================================
+        function createVolumetricModel(imageUrl, colorHex, layers = 20, totalDepth = 0.3) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
                 img.src = imageUrl;
-                
                 img.onload = () => {
-                    // 1. 像素处理：生成高对比度蒙版
+                    // 像素分析：生成高对比度蒙版
                     const canvas = document.createElement('canvas');
                     canvas.width = 512; canvas.height = 512;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, 512, 512);
-                    
                     const imageData = ctx.getImageData(0, 0, 512, 512);
                     const data = imageData.data;
-
+                    // 假设输入是白底黑线稿
                     for (let i = 0; i < data.length; i += 4) {
-                        const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-                        // 阈值处理：接近白色的背景设为完全透明
-                        if (avg > 180) { 
+                        const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                        // 如果是白色背景，设为完全透明
+                        if (brightness > 150) { 
                             data[i+3] = 0; 
                         } else {
-                            // 图案部分设为不透明，且填充纯白(用于着色)
-                            data[i] = 255; 
-                            data[i+1] = 255; 
-                            data[i+2] = 255;
+                            // 如果是黑色线条，设为完全不透明
                             data[i+3] = 255;
                         }
                     }
                     ctx.putImageData(imageData, 0, 0);
                     
-                    // 生成纹理
+                    // 生成纹理，使用 Nearest 滤波保持边缘像切割一样锐利
                     const texture = new THREE.CanvasTexture(canvas);
-                    // 关键：不使用Mipmap，保证边缘锐利像切割的一样
-                    texture.minFilter = THREE.LinearFilter; 
-                    texture.magFilter = THREE.LinearFilter;
+                    texture.minFilter = THREE.NearestFilter; 
+                    texture.magFilter = THREE.NearestFilter;
 
-                    // 2. 创建体积层 (Stacking)
+                    // 开始堆叠切片
                     const group = new THREE.Group();
                     const planeGeo = new THREE.PlaneGeometry(5.0, 5.0);
-                    const layerSpacing = depth / layers;
-
-                    const material = new THREE.MeshBasicMaterial({
+                    const layerSpacing = totalDepth / layers;
+                    const material = new THREE.MeshStandardMaterial({
                         map: texture,
                         transparent: true,
                         color: new THREE.Color(colorHex),
-                        alphaTest: 0.5, // 关键：丢弃半透明像素，产生硬边切割效果
-                        side: THREE.DoubleSide
+                        alphaTest: 0.5, // 关键：丢弃半透明像素，形成硬边实体
+                        roughness: 0.6,
+                        metalness: 0.1,
+                        side: THREE.DoubleSide // 双面渲染确保侧面有颜色
                     });
 
-                    // 循环生成层，堆叠起来形成厚度
                     for (let i = 0; i < layers; i++) {
                         const layer = new THREE.Mesh(planeGeo, material);
+                        // 稍微偏移每一层，形成厚度
                         layer.position.z = i * layerSpacing;
+                        // 稍微缩小后面几层，形成倒角效果
+                        // const scale = 1 - (i / layers) * 0.02;
+                        // layer.scale.set(scale, scale, scale);
                         group.add(layer);
                     }
-
                     resolve(group);
                 };
                 img.onerror = () => resolve(null);
             });
         }
 
-        // --- 4. 符咒基座 (严格尺寸) ---
-        
-        // 按照要求：图片宽度 5.0，作为正八边形对边距离
-        // 计算半径 r = (5.0 / 2) / cos(22.5deg) ≈ 2.706
+        // ==================================================
+        // --- 核心技术 2: 置换贴图法 (Displacement Mapping) ---
+        // 用于背面：将线稿生成凹陷的阴刻效果
+        // ==================================================
+        function createDisplacementModel(imageUrl) {
+             return new Promise((resolve) => {
+                const loader = new THREE.TextureLoader();
+                loader.load(imageUrl, (texture) => {
+                    // 1. 创建高密度网格平面 (以便产生精细的变形)
+                    // 256x256 的细分段数
+                    const geometry = new THREE.PlaneGeometry(5.0, 5.0, 256, 256);
+                    
+                    // 2. 设置材质，使用图片控制高度
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0x111111, // 深黑色凹槽
+                        map: texture,    // 自身纹理
+                        displacementMap: texture, // 核心：高度置换图
+                        displacementScale: -0.25, // 负值表示向下凹陷
+                        displacementBias: 0.12,    // 偏移量修正
+                        roughness: 0.9,
+                        metalness: 0.1,
+                        side: THREE.FrontSide
+                    });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    // 需要旋转180度作为背面
+                    mesh.rotation.y = Math.PI;
+                    resolve(mesh);
+                });
+             });
+        }
+
+
+        // --- 4. 主体建模：八边形石基 ---
+        // 严格尺寸：半径 2.71 对应对边距 5.0
         const r = 2.71; 
         const shape = new THREE.Shape();
         for (let i = 0; i < 8; i++) {
@@ -175,19 +214,14 @@
 
         const extrudeSettings = { 
             depth: 0.5, 
-            bevelEnabled: true, 
-            bevelThickness: 0.1, // 锐利的倒角
-            bevelSize: 0.1, 
-            bevelSegments: 1 
+            bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 2 
         };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         geometry.center();
 
         // 材质：深岩石灰
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x333333, 
-            roughness: 0.9, 
-            metalness: 0.1 
+            color: 0x333333, roughness: 0.9, metalness: 0.1 
         });
 
         const talismanMesh = new THREE.Mesh(geometry, stoneMaterial);
@@ -195,45 +229,36 @@
         
         // 初始位置：背面朝外
         talismanMesh.rotation.y = Math.PI; 
-        talismanMesh.rotation.x = 0.1;
+        talismanMesh.rotation.x = 0.2;
 
-        // --- 5. 生成 3D 图案 ---
+        // --- 5. 执行 3D 生成与组装 ---
         
         Promise.all([
-            // 正面马：淡紫色 (#dda0dd)，厚度 0.15
-            createVolumetricModel('talisman_front.jpg', '#dda0dd', 10, 0.15),
-            // 背面符文：黑色 (#111111)，厚度 0.15
-            createVolumetricModel('talisman_back.jpg', '#111111', 10, 0.15)
+            // 正面马：生成凸起的淡紫色实体 (#dda0dd), 厚度 0.2, 30层切片
+            createVolumetricModel('talisman_front.jpg', '#dda0dd', 30, 0.2),
+            // 背面符文：生成凹陷的黑色阴刻
+            createDisplacementModel('talisman_back.jpg')
         ]).then(models => {
             const [horseModel, runeModel] = models;
 
-            // 5.1 安置正面马 (3D拉伸)
+            // 5.1 安置正面 (凸起)
             if (horseModel) {
-                // 放置在石头表面 (z=0.25是石头表面)
+                // 放置在基座表面 (z=0.25)
                 horseModel.position.z = 0.25; 
                 talismanMesh.add(horseModel);
-                
-                // 增加一点微弱的发光核心
-                const glow = new THREE.PointLight(0xdda0dd, 0.5, 2);
-                glow.position.z = 0.5;
-                talismanMesh.add(glow);
             }
 
-            // 5.2 安置背面符文 (3D拉伸)
+            // 5.2 安置背面 (凹陷)
             if (runeModel) {
-                // 背面需要旋转并反向放置
-                runeModel.rotation.y = Math.PI; 
-                // 注意：因为是Group堆叠，原点在底层，所以要往里推一点或者反向堆叠
-                // 简单处理：Z轴负方向放置
+                // 放置在基座背面 (z=-0.25)
                 runeModel.position.z = -0.25; 
-                // 修正：因为旋转了180度，它的正Z是朝里的，所以没问题
                 talismanMesh.add(runeModel);
             }
 
             document.getElementById('loader').style.display = 'none';
         });
 
-        // --- 6. 动画逻辑 ---
+        // --- 6. 动画逻辑 (保持不变) ---
         let isCasting = false;
         const audio = document.getElementById("audio");
         const hint = document.getElementById("hint");
@@ -245,30 +270,29 @@
             audio.currentTime = 0;
             audio.play();
 
-            // 重置
             talismanMesh.rotation.y = Math.PI; 
             flashLight.intensity = 0;
 
-            // 1. 背面一闪而过 (扫光)
+            // 1. 背面扫光
             flashLight.position.set(-6, 6, -4); 
-            new TWEEN.Tween(flashLight).to({ intensity: 3 }, 200).start();
+            new TWEEN.Tween(flashLight).to({ intensity: 5 }, 200).start();
             new TWEEN.Tween(flashLight.position).to({ x: 6, y: -6 }, 1000)
                 .easing(TWEEN.Easing.Quadratic.Out)
                 .onComplete(() => { flashLight.intensity = 0; })
                 .start();
 
-            // 2. 翻转 (1.2s - 3.2s)
+            // 2. 翻转
             new TWEEN.Tween(talismanMesh.rotation)
                 .to({ y: 0 }, 2000)
                 .delay(1200)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 3. 正面一闪而过
+            // 3. 正面扫光
             setTimeout(() => {
                 flashLight.position.set(-6, -6, 4); 
                 flashLight.intensity = 0;
-                new TWEEN.Tween(flashLight).to({ intensity: 4 }, 200).start();
+                new TWEEN.Tween(flashLight).to({ intensity: 8 }, 200).start();
                 new TWEEN.Tween(flashLight.position).to({ x: 6, y: 6 }, 1000)
                     .easing(TWEEN.Easing.Quadratic.Out)
                     .onComplete(() => {
@@ -285,15 +309,12 @@
         function animate(time) {
             requestAnimationFrame(animate);
             TWEEN.update(time);
-
             if (!isCasting) {
                 talismanMesh.position.y = Math.sin(time * 0.001) * 0.15;
             }
             renderer.render(scene, camera);
         }
-
         animate();
-
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();

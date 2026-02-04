@@ -8,20 +8,20 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505; /* 背景稍微提亮一点点，不再是死黑 */
+            background-color: #050505;
             font-family: -apple-system, BlinkMacSystemFont, serif;
         }
 
         .back-link {
             position: absolute;
             top: 24px; left: 24px;
-            color: rgba(255, 255, 255, 0.6); /* 按钮也调亮 */
+            color: rgba(255, 255, 255, 0.7); /* 稍微调亮 */
             text-decoration: none;
             font-size: 14px;
             letter-spacing: 2px;
             z-index: 100;
             padding: 10px 18px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3); /* 稍微调亮 */
             background: rgba(0,0,0,0.5);
             border-radius: 4px;
             text-transform: uppercase;
@@ -32,7 +32,7 @@
             bottom: 15%;
             width: 100%;
             text-align: center;
-            color: #888; /* 文字调亮 */
+            color: #aaa; /* 调亮 */
             font-size: 12px;
             letter-spacing: 4px;
             text-transform: uppercase;
@@ -44,7 +44,7 @@
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            color: #888;
+            color: #aaa; /* 调亮 */
             font-size: 12px;
             letter-spacing: 2px;
             text-transform: uppercase;
@@ -66,8 +66,8 @@
     <script>
         // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
-        // 降低雾的浓度，让远处更清晰，环境更亮
-        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+        // 进一步降低雾浓度，提高通透感
+        scene.fog = new THREE.FogExp2(0x050505, 0.01);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.z = 16; 
@@ -76,28 +76,28 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.physicallyCorrectLights = true;
-        // 调整曝光度，整体画面更明亮
+        // 提高曝光，整体更亮
         renderer.toneMapping = THREE.ReinhardToneMapping;
-        renderer.toneMappingExposure = 1.2; 
+        renderer.toneMappingExposure = 1.5; 
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 灯光系统 (大幅增强亮度) ---
+        // --- 2. 灯光系统 (显著提升亮度) ---
         
-        // 环境光：从 0.4 提升到 1.2，确保阴影处也能看清细节
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+        // 环境光：大幅提升，照亮暗部细节
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
         scene.add(ambientLight);
 
-        // 顶部主光：从 3.0 提升到 4.5
-        const mainLight = new THREE.DirectionalLight(0xffffff, 4.5);
+        // 顶部主光：提升强度
+        const mainLight = new THREE.DirectionalLight(0xffffff, 6.0);
         mainLight.position.set(2, 8, 5);
         scene.add(mainLight);
 
-        // 侧面轮廓光：从 1.0 提升到 2.0，且颜色改为冷白，增加通透感
-        const rimLight = new THREE.DirectionalLight(0xeeeeff, 2.0);
+        // 侧面轮廓光：提升强度
+        const rimLight = new THREE.DirectionalLight(0xeeeeff, 3.0);
         rimLight.position.set(-5, 2, -5);
         scene.add(rimLight);
 
-        // 特效扫光灯 (初始关闭)
+        // 特效扫光灯
         const flashLight = new THREE.PointLight(0xffffff, 0, 80);
         scene.add(flashLight);
 
@@ -105,6 +105,7 @@
         // 核心技术：在浏览器内生成 3D 结构
         // ==========================================
 
+        // 技术 A: 图片转体积实体 (用于正面凸起)
         function createVolumetricMesh(imageUrl, colorHex, layers = 20, depth = 0.2) {
             return new Promise((resolve) => {
                 const img = new Image();
@@ -163,24 +164,54 @@
             });
         }
 
+        // 技术 B: 顶点置换 (用于背面凹陷) - 【修正：增加噪点清理】
         function createDisplacedMesh(imageUrl) {
             return new Promise((resolve) => {
-                new THREE.TextureLoader().load(imageUrl, (tex) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imageUrl;
+                img.onload = () => {
+                    // 1. 先在 Canvas 上清理图片噪点
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512; canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 512, 512);
+                    const data = ctx.getImageData(0, 0, 512, 512).data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+                        // 【核心修正】阈值清理：如果亮度大于100（浅灰色/白色背景及其杂色），强制变为纯黑
+                        // 这样只有深色的符文会保留，消除斑点
+                        if (avg > 100) {
+                             data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+                        }
+                        // 深色像素保持不变
+                    }
+                    // 更新 Canvas
+                    ctx.putImageData(ctx.createImageData(512, 512), 0, 0);
+                    const newData = ctx.createImageData(512, 512);
+                    for(let i=0; i<data.length; i++) newData.data[i] = data[i];
+                    ctx.putImageData(newData, 0, 0);
+                    
+                    // 使用清理后的 Texture
+                    const cleanTexture = new THREE.CanvasTexture(canvas);
+
+                    // 2. 创建置换网格
                     const geo = new THREE.PlaneGeometry(5.0, 5.0, 128, 128);
                     const mat = new THREE.MeshStandardMaterial({
                         color: 0x111111, 
-                        map: tex,
+                        map: cleanTexture, // 使用清理后的贴图
                         alphaTest: 0.1, 
                         transparent: true,
-                        displacementMap: tex, 
+                        displacementMap: cleanTexture, // 使用清理后的贴图进行置换
                         displacementScale: -0.2, 
-                        displacementBias: 0.1, 
+                        displacementBias: 0.05, // 微调偏移量
                         roughness: 0.9,
                         side: THREE.FrontSide
                     });
                     const mesh = new THREE.Mesh(geo, mat);
                     resolve(mesh);
-                });
+                }
             });
         }
 
@@ -204,7 +235,7 @@
         geometry.center();
 
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x555555, // 稍微提亮石头基础色
+            color: 0x888888, // 【修正】将石頭基底颜色调亮到中灰色
             roughness: 0.8, 
             metalness: 0.1 
         });
@@ -217,13 +248,9 @@
 
         // --- 4. 生成并组装 ---
         
-        // 蓝花楹色 (Jacaranda)：一种梦幻的蓝紫色 #8899ff 或 #9988ff
-        // 之前的淡紫色是 #dda0dd
-        // 这里修改为：#8a9ce8 (标准的蓝花楹色调)
+        // 【修正】颜色改为偏蓝的蓝紫混合色 (#5D7AE8 - Royal Blue/Periwinkle)
         Promise.all([
-            // 正面：蓝花楹色实体凸起
-            createVolumetricMesh('talisman_front.jpg', '#8a9ce8', 20, 0.15),
-            // 背面：黑色凹陷阴刻
+            createVolumetricMesh('talisman_front.jpg', '#5D7AE8', 20, 0.15),
             createDisplacedMesh('talisman_back.jpg')
         ]).then(([frontModel, backModel]) => {
             
@@ -231,10 +258,7 @@
                 frontModel.position.z = 0.251; 
                 talismanMesh.add(frontModel);
                 
-                // 发光核心也改为蓝花楹色
-                const glow = new THREE.PointLight(0x8a9ce8, 0.8, 2);
-                glow.position.z = 0.4;
-                talismanMesh.add(glow);
+                // 【修正】移除了之前的 PointLight (发光核心亮点)
             }
 
             if (backModel) {

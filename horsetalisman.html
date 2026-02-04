@@ -15,13 +15,13 @@
         .back-link {
             position: absolute;
             top: 24px; left: 24px;
-            color: rgba(255, 255, 255, 0.7); /* 稍微调亮 */
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
             font-size: 14px;
             letter-spacing: 2px;
             z-index: 100;
             padding: 10px 18px;
-            border: 1px solid rgba(255,255,255,0.3); /* 稍微调亮 */
+            border: 1px solid rgba(255,255,255,0.3);
             background: rgba(0,0,0,0.5);
             border-radius: 4px;
             text-transform: uppercase;
@@ -32,7 +32,7 @@
             bottom: 15%;
             width: 100%;
             text-align: center;
-            color: #aaa; /* 调亮 */
+            color: #aaa;
             font-size: 12px;
             letter-spacing: 4px;
             text-transform: uppercase;
@@ -44,7 +44,7 @@
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            color: #aaa; /* 调亮 */
+            color: #aaa;
             font-size: 12px;
             letter-spacing: 2px;
             text-transform: uppercase;
@@ -66,7 +66,6 @@
     <script>
         // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
-        // 进一步降低雾浓度，提高通透感
         scene.fog = new THREE.FogExp2(0x050505, 0.01);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -76,28 +75,23 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.physicallyCorrectLights = true;
-        // 提高曝光，整体更亮
         renderer.toneMapping = THREE.ReinhardToneMapping;
         renderer.toneMappingExposure = 1.5; 
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 灯光系统 (显著提升亮度) ---
+        // --- 2. 灯光系统 ---
         
-        // 环境光：大幅提升，照亮暗部细节
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
         scene.add(ambientLight);
 
-        // 顶部主光：提升强度
         const mainLight = new THREE.DirectionalLight(0xffffff, 6.0);
         mainLight.position.set(2, 8, 5);
         scene.add(mainLight);
 
-        // 侧面轮廓光：提升强度
         const rimLight = new THREE.DirectionalLight(0xeeeeff, 3.0);
         rimLight.position.set(-5, 2, -5);
         scene.add(rimLight);
 
-        // 特效扫光灯
         const flashLight = new THREE.PointLight(0xffffff, 0, 80);
         scene.add(flashLight);
 
@@ -120,8 +114,9 @@
 
                     for (let i = 0; i < data.length; i += 4) {
                         const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-                        if (avg > 180) { 
-                            data[i+3] = 0; 
+                        // 阈值处理：解决四个角穿出问题
+                        if (avg > 150) { 
+                            data[i+3] = 0; // 背景完全透明
                         } else { 
                             data[i] = 255; data[i+1] = 255; data[i+2] = 255; data[i+3] = 255;
                         }
@@ -132,6 +127,7 @@
                     ctx.putImageData(newData, 0, 0);
 
                     const texture = new THREE.CanvasTexture(canvas);
+                    // 提升清晰度
                     texture.minFilter = THREE.NearestFilter; 
                     texture.magFilter = THREE.NearestFilter;
 
@@ -164,33 +160,61 @@
             });
         }
 
-       // 技术 B: 顶点置换 (用于背面凹陷) - 【已修复：恢复原版逻辑，解决消失和卡顿问题】
+        // 技术 B: 顶点置换 (用于背面凹陷)
         function createDisplacedMesh(imageUrl) {
             return new Promise((resolve) => {
-                // 直接加载图片，不进行任何像素清洗，保留所有细节
-                new THREE.TextureLoader().load(imageUrl, (tex) => {
-                    // 128x128 的高密度网格，足以表现刻痕
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imageUrl;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512; canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 512, 512);
+                    const data = ctx.getImageData(0, 0, 512, 512).data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+                        // 阈值处理：解决四个角穿出问题，同时保留黑色符文
+                        if (avg > 150) {
+                             data[i+3] = 0; // 背景完全透明
+                        } else {
+                             // 符文部分保持黑色不透明
+                             data[i] = 0; data[i+1] = 0; data[i+2] = 0; data[i+3] = 255;
+                        }
+                    }
+                    ctx.putImageData(ctx.createImageData(512, 512), 0, 0);
+                    const newData = ctx.createImageData(512, 512);
+                    for(let i=0; i<data.length; i++) newData.data[i] = data[i];
+                    ctx.putImageData(newData, 0, 0);
+                    
+                    const cleanTexture = new THREE.CanvasTexture(canvas);
+                    // 提升清晰度
+                    cleanTexture.minFilter = THREE.NearestFilter;
+                    cleanTexture.magFilter = THREE.NearestFilter;
+
                     const geo = new THREE.PlaneGeometry(5.0, 5.0, 128, 128);
                     const mat = new THREE.MeshStandardMaterial({
-                        color: 0x111111, // 黑色材质
-                        map: tex,        // 使用原图纹理
-                        alphaTest: 0.1,  // 去除完全透明的部分
+                        color: 0x111111, 
+                        map: cleanTexture, 
+                        alphaTest: 0.5, // 配合透明纹理使用
                         transparent: true,
-                        displacementMap: tex, // 核心：使用原图的高度信息
-                        displacementScale: -0.2, // 向下凹陷
-                        displacementBias: 0.1,   // 偏移修正
+                        displacementMap: cleanTexture,
+                        displacementScale: -0.2, 
+                        displacementBias: 0.1,
                         roughness: 0.9,
                         side: THREE.FrontSide
                     });
                     const mesh = new THREE.Mesh(geo, mat);
                     resolve(mesh);
-                });
+                }
+                img.onerror = () => resolve(null);
             });
         }
 
         // --- 3. 构建符咒主体 ---
 
-        const r = 2.71; 
+        const r = 2.71;
         const shape = new THREE.Shape();
         for (let i = 0; i < 8; i++) {
             const angle = (i * 45 + 22.5) * Math.PI / 180;
@@ -208,11 +232,10 @@
         geometry.center();
 
         const stoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x444444, // 【修正】将石頭基底颜色调亮到中灰色
+            color: 0x444444, 
             roughness: 0.8, 
             metalness: 0.1 
         });
-
         const talismanMesh = new THREE.Mesh(geometry, stoneMaterial);
         scene.add(talismanMesh);
         
@@ -221,7 +244,6 @@
 
         // --- 4. 生成并组装 ---
         
-        // 【修正】颜色改为偏蓝的蓝紫混合色 (#5D7AE8 - Royal Blue/Periwinkle)
         Promise.all([
             createVolumetricMesh('talisman_front.jpg', '#5D7AE8', 20, 0.15),
             createDisplacedMesh('talisman_back.jpg')
@@ -230,8 +252,6 @@
             if (frontModel) {
                 frontModel.position.z = 0.251; 
                 talismanMesh.add(frontModel);
-                
-                // 【修正】移除了之前的 PointLight (发光核心亮点)
             }
 
             if (backModel) {
@@ -276,7 +296,7 @@
 
             // 3. 正面扫光
             setTimeout(() => {
-                flashLight.position.set(-6, -6, 4); 
+                flashLight.position.set(-6, -6, 4);
                 flashLight.intensity = 0;
                 new TWEEN.Tween(flashLight).to({ intensity: 8 }, 200).start();
                 new TWEEN.Tween(flashLight.position).to({ x: 6, y: 6 }, 1000)
